@@ -2,7 +2,7 @@ export default {
   async fetch(request, env) {
     if (!env.BOT_TOKEN) {
       return new Response("BOT_TOKEN is missing", { status: 500 });
-    }
+    }	
 
     if (request.method === "GET") {
       return new Response("Bot is running.", {
@@ -152,23 +152,43 @@ const TUITION_GUIDE_TEXT = `🎓 <b>راهنمای پرداخت شهریه دا�
 
 📱 <b>پرداخت شهریه با اپلیکیشن ۷۲۴</b>
 در برخی دوره‌ها، امکان پرداخت بدهی شهریه از طریق اپلیکیشن ۷۲۴ نیز فراهم است. راهنمای استفاده از این اپلیکیشن و نکات مربوط به زمان ثبت پرداخت را می‌توانید در گزینه <b>«📱 اپلیکیشن ۷۲۴»</b> در همین منو مشاهده کنید.
-`;
+
+❓ <b>پرسش‌های متداول و تخفیف‌ها</b>
+اگر درباره:
+• نحوه محاسبه شهریه،
+• وضعیت بدهی، جریمه دیرکرد،
+• انواع تخفیف‌ها و حمایت‌های مالی دانشجویان پیام نور
+
+سؤالی دارید، می‌توانید از دکمه‌های <b>Instant View</b> در همین منو برای مشاهده <b>«پرسش‌های متداول پرداخت شهریه»</b> و <b>«تخفیف‌ها و حمایت‌های ویژه»</b> استفاده کنید. این مطالب به‌صورت کامل در صفحات Telegraph توضیح داده شده‌اند.`;
 
 const TUITION_724_TEXT = `📱 <b>پرداخت شهریه با اپلیکیشن ۷۲۴</b>
 
 در برخی دوره‌ها، دانشگاه پیام نور این امکان را فراهم کرده است که دانشجویان بتوانند بدهی شهریه خود را از طریق اپلیکیشن پرداخت ۷۲۴ تسویه کنند.
 
-1️⃣<b> نصب و ورود به اپلیکیشن ۷۲۴</b>
+۱️⃣ <b>نصب و ورود به اپلیکیشن ۷۲۴</b>
+• اپلیکیشن را از فروشگاه‌های معتبر (کافه‌بازار، مایکت، Google Play و ...) یا لینک رسمی ۷۲۴ نصب کنید.
+• پس از نصب، وارد اپلیکیشن شوید و مراحل ثبت‌نام/ورود را تکمیل کنید.
 
-2️⃣<b> انتخاب بخش شهریه دانشگاه پیام نور</b>
+۲️⃣ <b>انتخاب بخش شهریه دانشگاه پیام نور</b>
+• در منوی اصلی اپلیکیشن، بخش خدمات دانشگاهی یا «شهریه دانشگاه پیام نور» را انتخاب کنید.
+• ممکن است لازم باشد <b>کد ملی، شماره دانشجویی</b> و سایر اطلاعات را وارد کنید.
 
-3️⃣<b> وارد کردن کد ملی و شماره دانشجویی</b>
+۳️⃣ <b>مشاهده مبلغ بدهی</b>
+• پس از ثبت اطلاعات، مبلغ بدهی شهریه شما (ثابت و یا متغیر) نمایش داده می‌شود.
+• در صورت مغایرت، حتماً وضعیت بدهی خود را از طریق سامانه گلستان نیز بررسی کنید.
 
-4️⃣<b> مشاهده مبلغ بدهی</b>
+۴️⃣ <b>انجام پرداخت</b>
+• روش پرداخت را (کارت بانکی، کیف پول، اعتبار و ...) انتخاب کنید.
+• اطلاعات کارت را وارد و پرداخت را نهایی کنید.
+• در پایان، رسید پرداخت و <b>کد پیگیری</b> را ذخیره یا اسکرین‌شات بگیرید.
 
-5️⃣ <b>انجام پرداخت</b>
+⏳ <b>زمان ثبت پرداخت در سامانه گلستان</b>
+• ثبت تراکنش در سیستم‌های میانی ممکن است تا <b>یک روز کاری</b> زمان ببرد.
+• پس از گذشت مدتی، با ورود به سامانه گلستان و بخش «پرداخت‌های الکترونیکی دانشجو» وضعیت بدهی خود را بررسی کنید.
 
-⚠️ اعمال تراکنش انجام شده از طریق سامانه ۷۲۴ در سامانه گلستان ممکن است تا <b>یک روز کاری</b> زمان ببرد. `;
+⚠️ <b>نکات مهم</b>
+• قبل از موعد امتحانات، مطمئن شوید بدهی شما در سامانه گلستان صفر شده است و امکان دریافت کارت ورود به جلسه دارید.
+• در صورت بروز مشکل (عدم ثبت پرداخت یا مغایرت مبلغ)، با <b>مسئول مالی/آموزش مرکز</b> یا پشتیبانی اپلیکیشن تماس بگیرید و کد پیگیری تراکنش را در اختیارشان قرار دهید.`;
 
 
 const JOIN_REQUIRED_INTRO =
@@ -334,72 +354,6 @@ function withFooter(baseText, options = {}) {
   return footer ? `${baseText}\n\n${footer}` : baseText;
 }
 
-// ==========================================
-// متون و کیبوردهای ماژول جامع انتخاب واحد
-// ==========================================
-
-const UNIT_RULES_TEXT = `⚖️ *قوانین مهم انتخاب واحد*
-
-📌 *تعداد واحد مجاز:* بر اساس معدل ترم قبل و مقررات آموزشی تعیین می‌شود.
-📌 *رعایت پیش‌نیاز و هم‌نیاز:* در صورت عدم رعایت، ممکن است دروس توسط سامانه یا آموزش حذف شوند.
-📌 *دروس معارف:* در هر نیمسال عادی فقط مجاز به اخذ *یک عنوان* (۲ واحد) درس از گروه معارف هستید.
-📌 *دانشجوی ترم آخر:* دانشجوی ترم آخر می‌تواند تحت شرایط خاص آموزشی و با تایید، تا ۲۴ واحد بدون رعایت برخی شروط اخذ کند.
-
-` + botSignatureText();
-
-const UNIT_TYPES_TEXT = `📖 *انواع دروس دانشگاهی پیام‌نور*
-
-🔹 *دروس عمومی:* دروسی مانند معارف، زبان عمومی، فارسی عمومی و تربیت‌بدنی.
-🔹 *دروس پایه:* دروس مبنایی رشته که اغلب در نیمسال‌های ابتدایی ارائه می‌شوند.
-🔹 *دروس اصلی و تخصصی:* دروس تخصصی مرتبط با رشته تحصیلی شما مطابق چارت.
-🔹 *دروس اختیاری:* دروسی که از جدول دروس اختیاری چارت تا سقف مشخص انتخاب می‌شوند.
-
-` + botSignatureText();
-
-const MAAREF_RULES_TEXT = `🕌 *قوانین دروس معارف اسلامی*
-
-1️⃣ در هر ترم عادی، دانشجو تنها مجاز به اخذ *یک عنوان* (حداکثر ۲ واحد) از دروس گروه معارف است.
-2️⃣ انتخاب هم‌زمان دو درس معارف ممنوع بوده و منجر به حذف یکی از آن‌ها خواهد شد.
-3️⃣ *استثنای ترم آخر:* دانشجویانی که ترم آخر هستند با مجوز آموزش می‌توانند دو عنوان معارف بردارند.
-
-` + botSignatureText();
-
-const SUMMER_TERM_TEXT = `☀️ *قوانین و شرایط ترم تابستان*
-
-🔹 سقف مجاز انتخاب واحد در ترم تابستان حداکثر *۸ واحد* است.
-🔹 ترم تابستان شرط معدل و مشروطی ندارد.
-🔹 نمرات ترم تابستان در معدل کل مؤثر است اما مشروطی ایجاد نمی‌کند.
-🔹 کلاس‌ها عموماً غیرحضوری یا فشرده و آزمون‌ها سراسری برگزار می‌شوند.
-
-` + botSignatureText();
-
-function getUnitSelectKeyboard() {
-  return [
-    [
-      { text: "🎬 ویدئوهای آموزشی انتخاب واحد", callback_data: "unit:videos" },
-      { text: "⚖️ قوانین انتخاب واحد", callback_data: "unit:rules" },
-    ],
-    [
-      { text: "📚 انواع دروس", callback_data: "unit:types" },
-      { text: "🕌 دروس معارف", callback_data: "unit:maaref" },
-    ],
-    [
-      { text: "☀️ ترم تابستان", callback_data: "unit:summer" },
-      { text: "📊 سقف و کف انتخاب واحد", callback_data: "unit:start" },
-    ],
-    [
-      { text: "📋 چارت هشت‌ترمه", callback_data: "refs:start" },
-      { text: "❓ پرسش‌های متداول", url: "https://telegra.ph/faq-unit-selection-pnu" },
-    ],
-    [
-      { text: "💻 خدمات انتخاب واحد (کافی‌نت)", callback_data: "cafenet:start" },
-      { text: "🔙 بازگشت به راهنمای گلستان", callback_data: "golestan:manual:section:edu" },
-    ],
-  ];
-}
-
-
-
 function resultKeyboardWithSupport(backData, extraRows = []) {
   return resultKeyboard(backData, [
     ...extraRows,
@@ -492,7 +446,6 @@ function mainMenuKeyboard() {
     [{ text: "🌐 سامانه آموزش مجازی", callback_data: "lms:menu" }],
     [{ text: "🏛 سامانه گلستان", callback_data: "golestan:menu" }],
     [{ text: "💰 وام دانشجویی", callback_data: "loan:show" }],
-    [{ text: "🗓️ تقویم آموزشی", callback_data: "loan:show" }],
     [
       {
         text: "📘 چارت هشت ترمه ، منابع و حذفیات ترم",
@@ -509,7 +462,7 @@ function calculationsKeyboard() {
     [{ text: "🧪 محاسبه نمره تستی", callback_data: "test:help" }],
     [{ text: "📘 محاسبه نمره نهایی", callback_data: "score:theory:help" }],
     [{ text: "📚 محاسبه معدل", callback_data: "gpa:help" }],
-    [{ text: "🎓 سقف و کف انتخاب واحد", callback_data: "unit:start" }],
+    [{ text: "🎓 سقف انتخاب واحد", callback_data: "unit:start" }],
   ]);
 }
 
@@ -718,49 +671,35 @@ function golestanManualSectionKeyboard(sectionId) {
 
   return resultKeyboard("golestan:manual:menu", rows);
 }
-function tuitionMenuKeyboard() {
-  return resultKeyboard("golestan:manual:section:edu", [
-    // 1) فیلم آموزشی پرداخت شهریه
-    [
-      {
-        text: "🎥 فیلم آموزشی پرداخت شهریه",
-        callback_data: "tuition:video",
-      },
-    ],
-
-    // 2) جدول مبالغ شهریه
-    [
-      {
-        text: "📊 جدول مبالغ شهریه",
-        callback_data: "tuition:fees_table",
-      },
-    ],
-
-    // 3) اپلیکیشن 724
-    [
-      {
-        text: "📱 اپلیکیشن ۷۲۴",
-        callback_data: "tuition:app724",
-      },
-    ],
-
-    // 4) تخفیف ها و حمایت های ویژه
-    [
-      {
-        text: "🎁 تخفیف‌ها و حمایت‌های ویژه",
-        url: TUITION_DISCOUNTS_IV_URL,
-      },
-    ],
-
-    // 5) پرسش های متداول
-    [
-      {
-        text: "❓ پرسش‌های متداول پرداخت شهریه",
-        url: TUITION_FAQ_IV_URL,
-      },
-    ],
-  ]);
-}
+  function tuitionMenuKeyboard() {
+    return resultKeyboard("golestan:manual:section:edu", [
+      [
+        {
+          text: "❓ پرسش‌های متداول پرداخت شهریه (Instant View)",
+          url: TUITION_FAQ_IV_URL,
+        },
+      ],
+      [
+        {
+          text: "🎁 تخفیف‌ها و حمایت‌های ویژه (Instant View)",
+          url: TUITION_DISCOUNTS_IV_URL,
+        },
+      ],
+      [
+        {
+          text: "🎥 فیلم آموزشی پرداخت شهریه",
+          callback_data: "tuition:video",
+        },
+      ],
+      [
+        {
+          text: "📊 جدول مبالغ شهریه",
+          callback_data: "tuition:fees_table",
+        },
+      ],
+      [{ text: "📱 اپلیکیشن ۷۲۴", callback_data: "tuition:724" }],
+    ]);
+  }
 
 
 function contactMenuKeyboard() {
@@ -1906,11 +1845,11 @@ async function handleMessage(message, env) {
         `📦 تعداد واحدها: ${fa(result.totalUnits)}`,
         `🎯 معدل ترم: ${fa(result.gpa.toFixed(2))}`,
         "",
-        "برای اطلاع از حداقل و حداکثر واحد قابل اخذ در نیمسال آینده، بر اساس این معدل، به بخش «سقف و کف انتخاب واحد» مراجعه نمایید.",
+        "برای اطلاع از حداقل و حداکثر واحد قابل اخذ در نیمسال آینده، بر اساس این معدل، به بخش «سقف انتخاب واحد» مراجعه نمایید.",
       ].join("\n"),
       env.BOT_TOKEN,
       resultKeyboard("menu:calculations", [
-        [{ text: "🎓 سقف و کف انتخاب واحد", callback_data: "unit:start" }],
+        [{ text: "🎓 سقف انتخاب واحد", callback_data: "unit:start" }],
       ]),
       true
     );
@@ -2126,7 +2065,7 @@ async function handleCallback(callbackQuery, env) {
   }
 
   // 📱 اپلیکیشن ۷۲۴
-  if (data === "tuition:app724") {
+  if (data === "tuition:724") {
     await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📱 اپلیکیشن ۷۲۴");
 
     await editMessage(
@@ -2570,133 +2509,6 @@ async function handleCallback(callbackQuery, env) {
     return;
   }
 
-  // --- ✅ ماژول جامع انتخاب واحد (قبل از handler عمومی قرار گرفت) ---
-  if (data === "unit:main" || data === "golestan:manual:item:edu:unit_select") {
-    userStates.delete(chatId);
-    const eduSection = GOLESTAN_MANUAL_SECTIONS.find((s) => s.id === "edu");
-    const unitItem = eduSection?.items.find((i) => i.id === "unit_select");
-    await editMessage(
-      chatId,
-      messageId,
-      unitItem ? unitItem.text : "📚 *راهنمای انتخاب واحد*",
-      env.BOT_TOKEN,
-      getUnitSelectKeyboard(),
-      true,
-      "Markdown"
-    );
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-    return;
-  }
-
-  if (data === "unit:videos") {
-    userStates.delete(chatId);
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "در حال ارسال ویدئوهای آموزشی...");
-    const videoIds = [23, 24, 35];
-    for (const vidId of videoIds) {
-      try {
-        await tgCall("copyMessage", env.BOT_TOKEN, {
-          chat_id: chatId,
-          from_chat_id: "@PNUniNet",
-          message_id: vidId,
-        });
-      } catch (e) {
-        // در صورت بروز خطا در ارسال یک ویدئو، ادامه یابد
-      }
-    }
-    await sendMessage(
-      chatId,
-      `💡 *برای انجام انتخاب واحد به کمک نیاز دارید؟*\n\n` + botSignatureText(),
-      env.BOT_TOKEN,
-      [
-        [{ text: "💻 خدمات کافی‌نت و انتخاب واحد", callback_data: "cafenet:start" }],
-        [{ text: "🔙 بازگشت به انتخاب واحد", callback_data: "unit:main" }],
-      ],
-      true,
-      "Markdown"
-    );
-    return;
-  }
-
-  if (data === "unit:rules") {
-    userStates.delete(chatId);
-    await editMessage(
-      chatId,
-      messageId,
-      UNIT_RULES_TEXT,
-      env.BOT_TOKEN,
-      [
-        [
-          { text: "🕌 دروس معارف", callback_data: "unit:maaref" },
-          { text: "📊 سقف و کف انتخاب واحد", callback_data: "unit:start" },
-        ],
-        [
-          { text: "⏳ دانشجوی ترم آخری", callback_data: "golestan:manual:item:special:last_term" },
-        ],
-        [
-          { text: "🔙 بازگشت به انتخاب واحد", callback_data: "unit:main" },
-        ],
-      ],
-      true,
-      "Markdown"
-    );
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-    return;
-  }
-
-  if (data === "unit:types") {
-    userStates.delete(chatId);
-    await editMessage(
-      chatId,
-      messageId,
-      UNIT_TYPES_TEXT,
-      env.BOT_TOKEN,
-      [
-        [{ text: "🕌 جزئیات دروس معارف", callback_data: "unit:maaref" }],
-        [{ text: "🔙 بازگشت به انتخاب واحد", callback_data: "unit:main" }],
-      ],
-      true,
-      "Markdown"
-    );
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-    return;
-  }
-
-  if (data === "unit:maaref") {
-    userStates.delete(chatId);
-    await editMessage(
-      chatId,
-      messageId,
-      MAAREF_RULES_TEXT,
-      env.BOT_TOKEN,
-      [
-        [{ text: "💻 خدمات انتخاب واحد (کافی‌نت)", callback_data: "cafenet:start" }],
-        [{ text: "🔙 بازگشت به انتخاب واحد", callback_data: "unit:main" }],
-      ],
-      true,
-      "Markdown"
-    );
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-    return;
-  }
-
-  if (data === "unit:summer") {
-    userStates.delete(chatId);
-    await editMessage(
-      chatId,
-      messageId,
-      SUMMER_TERM_TEXT,
-      env.BOT_TOKEN,
-      [
-        [{ text: "💻 خدمات انتخاب واحد (کافی‌نت)", callback_data: "cafenet:start" }],
-        [{ text: "🔙 بازگشت به انتخاب واحد", callback_data: "unit:main" }],
-      ],
-      true,
-      "Markdown"
-    );
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-    return;
-  }
-
   // ✅ handler عمومی آیتم‌های راهنمای گلستان
   if (data.startsWith("golestan:manual:item:")) {
     userStates.delete(chatId);
@@ -2730,6 +2542,7 @@ async function handleCallback(callbackQuery, env) {
 
     return;
   }
+
 
   if (data === "golestan:address") {
     userStates.delete(chatId);
@@ -2808,12 +2621,12 @@ async function handleCallback(callbackQuery, env) {
   if (data === "unit:start") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🎓 محاسبه سقف و کف انتخاب واحد");
+    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🎓 محاسبه سقف انتخاب واحد");
 
     await editMessage(
       chatId,
       messageId,
-      "🎓 سقف و کف مجاز انتخاب واحد\n\n❓ آیا ترم آخر هستید؟",
+      "🎓 سقف مجاز انتخاب واحد\n\n❓ آیا ترم آخر هستید؟",
       env.BOT_TOKEN,
       resultKeyboard("menu", [
         [
@@ -2835,7 +2648,7 @@ async function handleCallback(callbackQuery, env) {
       chatId,
       messageId,
       [
-        "📋 نتیجه سقف و کف مجاز انتخاب واحد",
+        "📋 نتیجه سقف مجاز انتخاب واحد",
         "",
         "🎓 وضعیت: ترم آخر",
         `🔺 حداکثر مجاز: ${fa("۲۴")} واحد`,
@@ -2918,7 +2731,7 @@ async function handleCallback(callbackQuery, env) {
       chatId,
       messageId,
       [
-        "📋 نتیجه سقف و کف مجاز انتخاب واحد",
+        "📋 نتیجه سقف مجاز انتخاب واحد",
         "",
         `👤 وضعیت: ${statusLabel}`,
         `🎓 معدل ترم قبل: ${gpaLabel}`,
@@ -2935,4 +2748,3 @@ async function handleCallback(callbackQuery, env) {
 
   await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "✅ انجام شد");
 }
-
