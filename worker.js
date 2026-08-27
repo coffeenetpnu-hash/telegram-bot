@@ -2936,4 +2936,3 @@ async function handleCallback(callbackQuery, env) {
   await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "✅ انجام شد");
 }
 
-
