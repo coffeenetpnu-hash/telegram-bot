@@ -2,11 +2,13 @@ export default {
   async fetch(request, env) {
     if (!env.BOT_TOKEN) {
       return new Response("BOT_TOKEN is missing", { status: 500 });
-    }	
+    }
 
     if (request.method === "GET") {
       return new Response("Bot is running.", {
-        headers: { "content-type": "text/plain; charset=utf-8" },
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+        },
       });
     }
 
@@ -14,9 +16,16 @@ export default {
       return new Response("Method not allowed", { status: 405 });
     }
 
-    const update = await request.json().catch(() => null);
+    let update;
 
-    if (!update) {
+    try {
+      update = await request.json();
+    } catch (error) {
+      console.error("Invalid JSON update:", error);
+      return new Response("Bad request", { status: 400 });
+    }
+
+    if (!update || typeof update !== "object") {
       return new Response("Bad request", { status: 400 });
     }
 
@@ -27,7 +36,7 @@ export default {
         await handleCallback(update.callback_query, env);
       }
     } catch (error) {
-      console.error("Unhandled error:", error);
+      console.error("Unhandled update error:", error);
     }
 
     return new Response("ok");
@@ -38,8 +47,11 @@ export default {
    D1 Analytics Logic
    جدول users باید در کنسول D1 ساخته شده باشد
 ============================================ */
+
 async function trackUser(user, env, source = "interaction") {
-  if (!user?.id || !env.DB) return;
+  if (!user?.id || !env.DB) {
+    return;
+  }
 
   const now = new Date().toISOString();
 
@@ -47,8 +59,15 @@ async function trackUser(user, env, source = "interaction") {
     await env.DB.prepare(
       `
       INSERT INTO users (
-        id, first_name, last_name, username, language_code,
-        is_premium, first_seen_at, last_seen_at, last_action
+        id,
+        first_name,
+        last_name,
+        username,
+        language_code,
+        is_premium,
+        first_seen_at,
+        last_seen_at,
+        last_action
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
@@ -59,7 +78,7 @@ async function trackUser(user, env, source = "interaction") {
         is_premium = excluded.is_premium,
         last_seen_at = excluded.last_seen_at,
         last_action = excluded.last_action
-    `
+      `
     )
       .bind(
         user.id,
@@ -73,8 +92,8 @@ async function trackUser(user, env, source = "interaction") {
         source
       )
       .run();
-  } catch (e) {
-    console.error("D1 Track Error:", e);
+  } catch (error) {
+    console.error("D1 Track Error:", error);
   }
 }
 
@@ -102,7 +121,7 @@ const TUITION_FAQ_IV_URL =
   "https://telegra.ph/%D9%BE%D8%B1%D8%B3%D8%B4%E2%80%8C%D9%87%D8%A7%DB%8C-%D9%85%D8%AA%D8%AF%D8%A7%D9%88%D9%84-%D9%BE%D8%B1%D8%AF%D8%A7%D8%AE%D8%AA-%D8%B4%D9%87%D8%B1%DB%8C%D9%87-%D8%AF%D8%A7%D9%86%D8%B4%DA%AF%D8%A7%D9%87-%D9%BE%DB%8C%D8%A7%D9%85-%D9%86%D9%88%D8%B1-08-21";
 
 const TUITION_DISCOUNTS_IV_URL =
-  "https://telegra.ph/%D8%AA%D8%AE%D9%81%DB%8C%D9%81%E2%80%8C%D9%87%D8%A7-%D9%88-%D8%AD%D9%85%D8%A7%DB%8C%D8%AA%E2%80%8C%D9%87%D8%A7%DB%8C-%D9%88%DB%8C%DA%98%D9%87-%D8%AF%D8%A7%D9%86%D8%B4%D8%AC%D9%88%DB%8C%D8%A7%D9%86-%D8%AF%D8%A7%D9%86%D8%B4%DA%AF%D8%A7%D9%87-%D9%BE%DB%8C%D8%A7%D9%85-%D9%86%D9%88%D8%B1-08-21";
+  "https://telegra.ph/%D8%AA%D8%AE%D9%81%DB%8C%D9%81%E2%80%8C%D9%87%D8%A7-%D9%88-%D8%AD%D9%85%D8%A7%DB%8C%D8%AA%E2%80%8C%D9%87%D8%A7%DB%8C-%D9%88%DB%8C%DA%98%D9%87-%D8%AF%D8%A7%D9%86%D8%B4%D8%AC%D9%88%DB%8C%D8%A7%D9%87%D8%A7%DB%8C-%D8%AF%D8%A7%D9%86%D8%B4%DA%AF%D8%A7%D9%87-%D9%BE%DB%8C%D8%A7%D9%85-%D9%86%D9%88%D8%B1-08-21";
 
 const TUITION_GUIDE_TEXT = `🎓 <b>راهنمای پرداخت شهریه دانشگاه پیام نور</b>
 
@@ -124,7 +143,7 @@ const TUITION_GUIDE_TEXT = `🎓 <b>راهنمای پرداخت شهریه دا�
 
 ⏰ <b>مهلت پرداخت شهریه</b>
 
-✅ <b>شهریه ثابت:</b> 
+✅ <b>شهریه ثابت:</b>
 به‌طور معمول باید <b>قبل از انتخاب واحد</b> پرداخت شود. در صورت عدم پرداخت، امکان ثبت‌نام یا انتخاب واحد ممکن است محدود یا غیرفعال شود.
 
 ✅ <b>شهریه متغیر:</b>
@@ -152,44 +171,23 @@ const TUITION_GUIDE_TEXT = `🎓 <b>راهنمای پرداخت شهریه دا�
 
 📱 <b>پرداخت شهریه با اپلیکیشن ۷۲۴</b>
 در برخی دوره‌ها، امکان پرداخت بدهی شهریه از طریق اپلیکیشن ۷۲۴ نیز فراهم است. راهنمای استفاده از این اپلیکیشن و نکات مربوط به زمان ثبت پرداخت را می‌توانید در گزینه <b>«📱 اپلیکیشن ۷۲۴»</b> در همین منو مشاهده کنید.
-
-❓ <b>پرسش‌های متداول و تخفیف‌ها</b>
-اگر درباره:
-• نحوه محاسبه شهریه،
-• وضعیت بدهی، جریمه دیرکرد،
-• انواع تخفیف‌ها و حمایت‌های مالی دانشجویان پیام نور
-
-سؤالی دارید، می‌توانید از دکمه‌های <b>Instant View</b> در همین منو برای مشاهده <b>«پرسش‌های متداول پرداخت شهریه»</b> و <b>«تخفیف‌ها و حمایت‌های ویژه»</b> استفاده کنید. این مطالب به‌صورت کامل در صفحات Telegraph توضیح داده شده‌اند.`;
+`;
 
 const TUITION_724_TEXT = `📱 <b>پرداخت شهریه با اپلیکیشن ۷۲۴</b>
 
 در برخی دوره‌ها، دانشگاه پیام نور این امکان را فراهم کرده است که دانشجویان بتوانند بدهی شهریه خود را از طریق اپلیکیشن پرداخت ۷۲۴ تسویه کنند.
 
-۱️⃣ <b>نصب و ورود به اپلیکیشن ۷۲۴</b>
-• اپلیکیشن را از فروشگاه‌های معتبر (کافه‌بازار، مایکت، Google Play و ...) یا لینک رسمی ۷۲۴ نصب کنید.
-• پس از نصب، وارد اپلیکیشن شوید و مراحل ثبت‌نام/ورود را تکمیل کنید.
+1️⃣ <b>نصب و ورود به اپلیکیشن ۷۲۴</b>
 
-۲️⃣ <b>انتخاب بخش شهریه دانشگاه پیام نور</b>
-• در منوی اصلی اپلیکیشن، بخش خدمات دانشگاهی یا «شهریه دانشگاه پیام نور» را انتخاب کنید.
-• ممکن است لازم باشد <b>کد ملی، شماره دانشجویی</b> و سایر اطلاعات را وارد کنید.
+2️⃣ <b>انتخاب بخش شهریه دانشگاه پیام نور</b>
 
-۳️⃣ <b>مشاهده مبلغ بدهی</b>
-• پس از ثبت اطلاعات، مبلغ بدهی شهریه شما (ثابت و یا متغیر) نمایش داده می‌شود.
-• در صورت مغایرت، حتماً وضعیت بدهی خود را از طریق سامانه گلستان نیز بررسی کنید.
+3️⃣ <b>وارد کردن کد ملی و شماره دانشجویی</b>
 
-۴️⃣ <b>انجام پرداخت</b>
-• روش پرداخت را (کارت بانکی، کیف پول، اعتبار و ...) انتخاب کنید.
-• اطلاعات کارت را وارد و پرداخت را نهایی کنید.
-• در پایان، رسید پرداخت و <b>کد پیگیری</b> را ذخیره یا اسکرین‌شات بگیرید.
+4️⃣ <b>مشاهده مبلغ بدهی</b>
 
-⏳ <b>زمان ثبت پرداخت در سامانه گلستان</b>
-• ثبت تراکنش در سیستم‌های میانی ممکن است تا <b>یک روز کاری</b> زمان ببرد.
-• پس از گذشت مدتی، با ورود به سامانه گلستان و بخش «پرداخت‌های الکترونیکی دانشجو» وضعیت بدهی خود را بررسی کنید.
+5️⃣ <b>انجام پرداخت</b>
 
-⚠️ <b>نکات مهم</b>
-• قبل از موعد امتحانات، مطمئن شوید بدهی شما در سامانه گلستان صفر شده است و امکان دریافت کارت ورود به جلسه دارید.
-• در صورت بروز مشکل (عدم ثبت پرداخت یا مغایرت مبلغ)، با <b>مسئول مالی/آموزش مرکز</b> یا پشتیبانی اپلیکیشن تماس بگیرید و کد پیگیری تراکنش را در اختیارشان قرار دهید.`;
-
+⚠️ اعمال تراکنش انجام شده از طریق سامانه ۷۲۴ در سامانه گلستان ممکن است تا <b>یک روز کاری</b> زمان ببرد.`;
 
 const JOIN_REQUIRED_INTRO =
   "برای استفاده از امکانات ربات، لطفا در کانال و گروه‌های زیر عضو شوید:";
@@ -249,6 +247,257 @@ const RAILAY_GUIDE_VIDEOS = [
   },
 ];
 
+// ==========================================
+// تنظیمات و متون کامل ماژول انتخاب واحد
+// ==========================================
+
+const UNIT_FAQ_TELEGRAPH_URL = "https://telegra.ph/%D9%BE%D8%B1%D8%B3%D8%B4%E2%80%8C%D9%87%D8%A7%DB%8C-%D9%85%D8%AA%D8%AF%D8%A7%D9%88%D9%84-%D8%A7%D9%86%D8%AA%D8%AE%D8%A7%D8%A8-%D9%88%D8%A7%D8%AD%D8%AF-08-26";
+
+const UNIT_GUIDE_VIDEOS = [
+  { id: "unit_vid_1", messageId: 23, channel: "@PNUniNet" },
+  { id: "unit_vid_2", messageId: 24, channel: "@PNUniNet" },
+  { id: "unit_vid_3", messageId: 35, channel: "@PNUniNet" }
+];
+
+function unitMainMenuText() {
+  const body = [
+    "🎓 *راهنمای جامع انتخاب واحد دانشگاه پیام نور*",
+    "انتخاب واحد یکی از مهم‌ترین مراحل آموزشی دانشجویان دانشگاه پیام نور است که پیش از آغاز هر نیمسال تحصیلی انجام می‌شود.",
+    "",
+    "*زمان انتخاب واحد*",
+    "دانشگاه پیام نور معمولاً در سه بازه آموزشی امکان انتخاب واحد را فعال می‌کند:",
+    "🔹 *نیمسال اول* (معمولاً در اواسط شهریورماه)",
+    "🔹 *نیمسال دوم* (معمولاً اواخر دی یا اوایل بهمن)",
+    "🔹 *ترم تابستان* (اختیاری و با تعداد درس‌های ارائه‌شده محدودتر)",
+    "بازه انتخاب واحد معمولاً حدود *یک هفته تا ده روز* است و ممکن است تمدید هم شود. پس از انتخاب واحد نیز معمولاً یک بازه برای *حذف و اضافه* در نظر گرفته می‌شود.",
+    "________________________________________",
+    "*سامانه انتخاب واحد پیام نور*",
+    "تمام امور مهم آموزشی، از جمله انتخاب واحد، حذف و اضافه، پرداخت شهریه، مشاهده نمرات و دریافت گزارش‌ها، در *سامانه جامع گلستان* انجام می‌شود:",
+    "📱 ورود با موبایل ممکن است، اما برای جلوگیری از خطا یا ثبت اشتباه، *استفاده از لپ‌تاپ یا کامپیوتر و اینترنت پایدار* توصیه می‌شود. همچنین، لطفاً در طول انجام این فعالیت، اتصال فیلترشکن خود را قطع نمایید",
+    "________________________________________",
+    "⫶☰ *چک‌لیست ضروری قبل از انتخاب واحد*",
+    "پیش از باز شدن زمان انتخاب واحد، این موارد را آماده کنید:",
+    "1) *بررسی وضعیت مالی و پرداخت شهریه*",
+    "معمولاً تا زمانی که *شهریه ثابت و بدهی‌های قبلی* پرداخت نشده باشد، منوی ثبت‌نام برای دانشجو فعال نمی‌شود.",
+    "برای اطلاعات از جزئیات شهریه و پرداخت آن به قسمت پرداخت شهریه مراجعه کنید",
+    "",
+    "2) **بررسی نمرات ترم قبل**",
+    "نمرات و معدل خود را بررسی کنید، مخصوصاً اگر:",
+    "• درسی را مردود شده‌اید؛",
+    "• احتمال مشروطی دارید؛",
+    "• درسی که می‌خواهید بردارید پیش‌نیاز دارد.",
+    "",
+    "3) *دریافت لیست ارائه دروس*",
+    "مهم‌ترین ابزارهای شما برای انتخاب واحد، *آخرین لیست ارائه دروس مرکز/رشته‌تان* _(گزارش 212)_ است که از مسیر زیر قابل مشاهده هست :",
+    "`آموزش ← گزارش‌های آموزش ← درس‌های ترمی ← لیست دروس ارائه‌شده (ویژه دانشجو)`",
+    "",
+    "📋 *آماده‌کردن برنامه شخصی*",
+    "قبل از ورود به بخش ثبت‌نام، روی کاغذ یا گوشی یادداشت کنید:",
+    "• کد هر درس",
+    "• شماره گروه",
+    "• تعداد واحدها",
+    "• جایگزین احتمالی در صورت پر شدن ظرفیت",
+    "این کار، سرعت و دقت شما را بسیار بالا می‌برد.",
+    "توصیه می‌شود تا حد امکان مطابق برنامه چارت هشت ترمه رشته خود پیش بروید، زیرا در بسیاری از موارد برنامه‌ریزی امتحانات نیز با توجه به همین ترتیب انجام می‌شود و احتمال تداخل امتحان کمتر خواهد بود.",
+    "________________________________________",
+    "*مراحل انتخاب واحد در سامانه گلستان*",
+    "1️⃣ وارد *سامانه گلستان* شوید.",
+    "4️⃣ از منوی اصلی به مسیر زیر بروید:",
+    "`ثبت‌نام ← عملیات ثبت‌نام ← ثبت‌نام اصلی`",
+    "5️⃣ در صفحه انتخاب واحد، شماره درس و شماره گروه را وارد کنید.",
+    "6️⃣ درس‌ها را یکی‌یکی به فهرست خود اضافه کنید.",
+    "7️⃣ پس از افزودن همه درس‌ها، گزینه بررسی تغییرات را بزنید.",
+    "8️⃣ خطاهای احتمالی را برطرف کنید.",
+    "9️⃣ در صورت نبود خطا، گزینه اعمال تغییرات را انتخاب کنید.",
+    "🔟 در پایان، حتماً تأییدیه یا پرینت انتخاب واحد (گزارش 101) را دریافت و ذخیره کنید.",
+    "❌ فقط اضافه‌کردن درس در صفحه کافی نیست؛ تا زمانی که اعمال تغییرات را نزنید، انتخاب واحد شما قطعی نشده است."
+  ].join("\n");
+  return withFooter(body, { includeSignature: true, includeSupportPrompt: true });
+}
+
+function unitRulesText() {
+  const body = [
+    "📢راهنمای جامع انتخاب واحد؛ نکات کلیدی که باید بدانید! 🎓",
+    "",
+    "📚 ۱) *قوانین پیش‌نیاز و هم‌نیاز*",
+    "*پیش‌نیاز*: حتماً باید درس پیش‌نیاز را قبلاً پاس کرده باشید تا بتوانید درس بعدی را بردارید. (_مثال: ریاضی ۱ پیش‌نیاز ریاضی ۲ است)._",
+    "*هم‌نیاز*: باید این درس را یا قبلاً گذرانده باشید، یا در همین ترم هم‌زمان با درس اصلی بردارید.",
+    "⚠️ نکته: در صورت مردودی درس پیش‌نیاز، قوانین دانشگاه‌ها متفاوت است؛ قبل از هر اقدامی حتماً با کارشناس رشته مشورت کنید.",
+    "",
+    "🕌 ۲) *قانون دروس معارف*",
+    "«در هر ترم، دانشجویان ملزم به اخذ *فقط یک درس (۲ واحدی)* از گروه معارف هستند (اخذ بیش از یک درس مجاز نیست). انتخاب واحد شما بدون درس معارف تکمیل نمی‌شود. برای مشاهده فهرست و قوانین دروس معارف، به بخش راهنمای «دروس معارف» مراجعه کنید.»",
+    "",
+    "📊 ۳) *سقف و کف واحدها*",
+    "سقف و کف مجازِ شما بر اساس «معدل ترم قبل» و «وضعیت نظام‌وظیفه» تعیین می‌شود. برای اطلاع از جزئیات سقف مجاز خود، به بخش *سقف و کف انتخاب واحد* مراجعه کنید.",
+    "",
+    "📉 ۴) *دانشجویان مشروط*",
+    "اگر معدل ترم قبل شما کمتر از ۱۲ است، مشروط محسوب می‌شوید و در ترم جاری حداکثر مجاز به اخذ ۱۴ واحد هستید.",
+    "",
+    "🎓 ۵) *دانشجوی ترم آخری*",
+    "اگر حداکثر ۲۴ واحد تا پایان تحصیلتان باقی مانده، دانشجوی ترم آخر محسوب شده و از این مزایا برخوردارید:",
+    "البته لازم است که قبل از انتخاب واحد در سامانه گلستان بایستی درخواست دانشجوی ترم آخر داده و توسط دانشگاه تایید شده باشید. برای اطلاع از جزئیات سقف مجاز خود، به بخش *دانشجوی ترم آخری* مراجعه کنید.",
+    "",
+    "⭐ امکان اخذ واحد تا سقف ۲۴ واحد (حتی در صورت مشروطی)",
+    "⭐ مجوزِ اخذ دروسی که پیش‌نیاز آن‌ها را پاس نکرده‌اید",
+    "⭐ حذف محدودیت تداخل امتحانی",
+    "⭐ امکان اخذ درس از مراکز دیگر (در صورت عدم ارائه در مرکز مبدأ)",
+    "",
+    "📌 توصیه نهایی: پیش از شروع فرآیند، حتماً چارت درسی خود را چک کنید و اولویت‌بندی دروس را فراموش نکنید."
+  ].join("\n");
+  return withFooter(body, { includeSignature: true, includeSupportPrompt: true });
+}
+
+function unitTypesText() {
+  const body = [
+    "🎓 راهنمای جامع دروس کارشناسی در دانشگاه پیام‌نور",
+    "",
+    "⏳ طول دوره فارغ‌التحصیلی: معمولاً ۴ سال (۸ ترم)",
+    "📚 میانگین واحدهای لازم: ۱۳۰ تا ۱۴۰ واحد",
+    "",
+    "〰️〰️〰️〰️〰️〰️",
+    "",
+    "📖 ۱. دسته‌بندی دروس از نظر محتوا",
+    "دروس دانشگاهی معمولاً در ۴ گروه اصلی قرار می‌گیرند:",
+    "",
+    "🔹 دروس عمومی: مشترک بین همه رشته‌ها جهت ارتقای مهارت‌های عمومی و فرهنگی.",
+    "├ ◽️ *غیرمعارفی:* فارسی، زبان خارجی، تربیت بدنی، ورزش، دفاع مقدس و...",
+    "└ ◽️ *معارفی:* آیین زندگی، انقلاب اسلامی، دانش خانواده و... (این دروس قوانین خاص خود را دارند).",
+    "👇 *برای مشاهده فهرست کامل و قوانین دروس معارف، روی دکمه شیشه‌ای پایین کلیک کنید.*",
+    "",
+    "🔹 دروس پایه: دروس زیربنایی که دانشجو را برای ورود به مباحث اصلی آماده می‌کنند (بخش زیادی از واحدها را شامل می‌شوند).",
+    "🔹 دروس اصلی: ستون فقرات هر رشته که مفاهیم بنیادین را پوشش می‌دهند.",
+    "🔹 دروس تخصصی: ویژه هر رشته و گرایش جهت آماده‌سازی برای بازار کار و تخصص عمیق‌تر.",
+    "",
+    "〰️〰️〰️〰️〰️〰️",
+    "",
+    "🧪 ۲. دسته‌بندی بر اساس نحوه ارائه",
+    "",
+    "👨‍🏫 تئوری (نظری): دارای محتوای تئوری که به صورت کلاس حضوری یا الکترونیکی ارائه می‌شوند.",
+    "",
+    "🛠 عملی: در آزمایشگاه، کارگاه یا محیط واقعی اجرا می‌شوند (مثل تربیت بدنی، پروژه و کارآموزی).",
+    "",
+    "🧩 تئوری–عملی: ترکیبی از مباحث نظری و تمرین عملی (نیمی از جلسات تئوری و نیمی عملی است؛ مثل نقشه‌کشی یا روش تحقیق).",
+    "",
+    "👤 بدون استاد: این دروس کلاس و نمره میان‌ترم ندارند و نمره نهایی مستقیماً از ۲۰ نمره پایان‌ترم محاسبه می‌شود (مثل حفظ جزء ۳۰ قرآن کریم یا آمادگی در برابر حوادث).",
+    "",
+    "〰️〰️〰️〰️〰️〰️",
+    "",
+    "⚖️ ۳. دسته‌بندی بر اساس الزام گذراندن",
+    "",
+    "🔴 دروس الزامی (اجباری): گذراندن آن‌ها برای اخذ مدرک قطعی است و قابل حذف یا جایگزینی نیستند (مگر از طریق معادل‌سازی).",
+    "",
+    "🟢 دروس اختیاری: (به دو دسته تقسیم می‌شوند) :",
+    "۱. اختیاری تخصصی: باید تعداد مشخصی از آن‌ها را پاس کنید، اما انتخاب درس به دلخواه شماست.",
+    "> 💻 *مثال (مهندسی کامپیوتر):* اخذ ۸ واحد اختیاری الزامی است، اما دانشجو می‌تواند این ۸ واحد را از بین ۱۷ درس متنوع (آزمون نرم‌افزار • ایجاد چابک نرم‌افزار • مبانی هوش محاسباتی • مبانی ساخت بازی‌های رایانه‌ای • برنامه‌سازی وب • برنامه‌سازی موبایل • تجارت الکترونیکی • مبانی رایانش ابری • مبانی اینترنت اشیا • مدیریت و برنامه‌ریزی راهبردی فناوری اطلاعات • کارآفرینی • مفاهیم پیشرفته کامپیوتر • مفاهیم پیشرفته کامپیوتر ۲ • انتقال داده‌ها • مقدمه‌ای بر بیوانفورماتیک • آزمایشگاه مهندسی نرم‌افزار • کارگاه ساخت بازی‌های رایانه‌ای) انتخاب کند.",
+    "",
+    "۲. اختیاری عمومی: کاملاً به اختیار دانشجو است. مازاد بر سقف واحدهای دوره در کارنامه ثبت شده و در معدل تأثیر دارد.",
+    "> 💡 *نمونه‌ها:* حقوق شهروندی، مکتب شهید سلیمانی، مهارت‌های زندگی دانشجویی، پدافند غیرعامل و...",
+    "",
+    "〰️〰️〰️〰️〰️〰️",
+    "",
+    "📌 نکات بسیار مهم برای انتخاب واحد:",
+    "",
+    "✅ همواره بر اساس چارت رشته خود انتخاب واحد کنید.",
+    "✅ رعایت پیش‌نیاز و هم‌نیاز الزامی است (پیش‌نیاز هر درس در چارت مقابل آن قید شده است).",
+    "✅ محدودیتی برای تعداد واحدهای پایه در یک ترم وجود ندارد، فقط باید پیش‌نیازها رعایت شوند.",
+    "✅ نیازی نیست تمام دروس اختیاریِ چارت را اخذ کنید؛ فقط به اندازه «سقف تعیین شده» انتخاب کنید."
+  ].join("\n");
+  return withFooter(body, { includeSignature: true, includeSupportPrompt: true });
+}
+
+function unitMaarefText() {
+  const body = [
+    "📢 *راهنمای جامع و لیست دروس معارف مقطع کارشناسی (دانشگاه پیام نور)*",
+    "",
+    "دانشجویان مقطع کارشناسی موظفند در طول دوران تحصیل خود *۷ عنوان درس معارفی (در مجموع ۱۴ واحد)* را بگذرانند.",
+    "",
+    "📌 *قوانین کلی اخذ دروس معارف:*",
+    "🔸 در هر نیمسال تحصیلی، دانشجویان مجاز به اخذ *فقط یک عنوان درس* از گروه معارف (۲ واحد) هستند.",
+    "🔸 دانشجویان اقلیت‌های دینی می‌توانند دروس مورد نظر خود را بدون محدودیت از بین تمامی دروس عمومی معارف انتخاب کنند.",
+    "",
+    "➖➖➖➖➖➖➖➖",
+    "📋 *گروه‌بندی و لیست دروس معارف:*",
+    "*(دانشجویان باید از ۵ گرایش زیر، دروس خود را تکمیل کنند)*",
+    "",
+    "۱️⃣ *گروه مبانی نظری اسلام:*",
+    "📗 اندیشه اسلامی ۱",
+    "📗 اندیشه اسلامی ۲",
+    "⚠️ *(گذراندن هر ۲ درس الزامی است)*",
+    "",
+    "۲️⃣ *گروه اخلاق اسلامی:*",
+    "📒 آیین زندگی (اخلاق کاربردی)",
+    "📒 اخلاق اسلامی (مبانی و مفاهیم)",
+    "📒 فلسفه اخلاق (با تکیه بر مباحث تربیتی)",
+    "⚠️ *(گذراندن یکی از این ۳ درس به انتخاب دانشجو الزامی است)*",
+    "",
+    "۳️⃣ *گروه انقلاب اسلامی:*",
+    "📕 آشنایی با قانون اساسی جمهوری اسلامی ایران",
+    "📕 انقلاب اسلامی ایران",
+    "📕 اندیشه سیاسی امام خمینی",
+    "⚠️ *(گذراندن یکی از این ۳ درس به انتخاب دانشجو الزامی است)*",
+    "",
+    "۴️⃣ *گروه آشنایی با منابع اسلامی:*",
+    "📖 تفسیر موضوعی قرآن",
+    "📖 تفسیر موضوعی نهج البلاغه",
+    "⚠️ *(گذراندن یکی از این ۲ درس به انتخاب دانشجو الزامی است)*",
+    "",
+    "۵️⃣ *دروس الزامی و مستقل:*",
+    "📔 فرهنگ و تمدن اسلامی",
+    "📘 دانش خانواده و جمعیت",
+    "⚠️ *(گذراندن هر ۲ درس الزامی است)*",
+    "",
+    "➖➖➖➖➖➖➖➖",
+    "🎓 *شرایط دانشجویان ترم آخر:*",
+    "اگر دانشجوی ترم آخر :",
+    "📚 حداکثر *۳ درس معارف* باقی‌مانده داشته باشد، می‌تواند هر سه درس را در همان نیمسال انتخاب کند و فارغ‌التحصیل شود.",
+    "📚 *۴ یا ۵ درس معارف* باقی‌مانده داشته باشد، می‌تواند سه درس را در نیمسال جاری انتخاب کرده و درس‌های باقی‌مانده را در نیمسال بعد به‌صورت *معرفی به استاد* بگذراند.",
+    "📚 *۶ درس معارف* باقی‌مانده داشته باشد، می‌تواند چهار درس را در نیمسال جاری انتخاب کرده و دو درس باقی‌مانده را در نیمسال بعد به‌صورت *معرفی به استاد* بگذراند.",
+    "",
+    "❌ *یک نکته مهم:*",
+    "درس «حفظ جزء ۳۰ قرآن کریم» جزء گروه معارف *نمی‌باشد*. اخذ این درس کاملاً اختیاری است و تاثیری در سقف دروس معارفی ندارد و فاقد شهریه می‌باشد."
+  ].join("\n");
+  return withFooter(body, { includeSignature: true, includeSupportPrompt: true });
+}
+
+function unitSummerText() {
+  const body = [
+    "☀️ *ترم تابستان*",
+    "ترم تابستان فرصتی اختیاری برای جبران دروس، تسریع روند تحصیل و فارغ‌التحصیلی دانشجویان است. ثبت‌نام و انتخاب واحد به‌صورت اینترنتی و از طریق سامانه جامع گلستان دانشگاه پیام نور (همانند انتخاب واحد اصلی) انجام می‌شود",
+    "",
+    "📆 این اطلاعات بر مبنای ترم تابستان *سال ۱۴۰۵* تهیه شده‌اند و ممکن است برخی از مفاد آن در ترم‌های بعدی تغییر کنند.",
+    "",
+    "مزایای ترم تابستان",
+    "✅ پاس‌کردن برخی دروس عمومی یا پایه",
+    "✅ کاهش فشار در ترم‌های مهر و بهمن",
+    "✅ جبران دروس باقی‌مانده",
+    "✅ کمک به فارغ‌التحصیلی زودتر",
+    "",
+    "نکات و محدودیت‌ها",
+    "⚠️ زمان آموزش و امتحانات فشرده‌تر است.",
+    "⚠️ همه دروس، مخصوصاً دروس تخصصی، لزوماً در تابستان ارائه نمی‌شوند.",
+    "⚠️ انتخاب تعداد زیاد درس‌های سنگین در تابستان ریسک افت تحصیلی را بالا می‌برد.",
+    "⚠️ حتماً برنامه امتحانات را قبل از ثبت نهایی بررسی کنید.",
+    "",
+    "📖 دروس قابل ارائه",
+    "🔹 دروس کاملاً نظریِ دارای منبع درسی، برای دانشجویان مقطع کارشناسی پیوسته از ترم ششم به بالا",
+    "🔹 دروس «تربیت بدنی»، «ورزش ۱»، «تربیت بدنی ویژه» و «ورزش ویژه» برای دانشجویان دارای شرایط خاص",
+    "🔹 دروس کارآموزی، کارورزی و پروژه در مقطع کارشناسی",
+    "🔹 درس‌های «حفظ جزء سی‌ام قرآن کریم» و «آمادگی در برابر حوادث و سوانح»",
+    "🔹 دروس عمومی: فارسی، زبان خارجی، علوم و معارف دفاع مقدس و مقاومت",
+    "🔹 دروس معارف اسلامی: فرهنگ و تمدن اسلام و ایران، اندیشه اسلامی ۲، دانش خانواده و جمعیت",
+    "🔹 تمدید پایان‌نامه ادامه‌دارِ مقطع کارشناسی ارشد، صرفاً برای دفاع",
+    "",
+    "🎓 *سقف انتخاب واحد*",
+    "✅ سقف انتخاب واحد دانشجویان مقطع کارشناسی ، *حداکثر ۹ واحد* است.",
+    "✅ از میان واحدهای انتخابی، حداکثر *یک عنوان درس معارف اسلامی* قابل اخذ است.",
+    "✅ رعایت پیش‌نیاز و هم‌نیاز دروس الزامی است.",
+    "✅ شرکت در ترم تابستان کاملاً *اختیاری* است.",
+    "❌ حذف و اضافه دروس در دوره تابستان امکانپذیر نیست."
+  ].join("\n");
+  return withFooter(body, { includeSignature: true, includeSupportPrompt: true });
+}
+
+
 /* =========================
    Helpers
 ========================= */
@@ -280,21 +529,29 @@ function normalizeFaDigits(value) {
   const arNums = "٠١٢٣٤٥٦٧٨٩";
 
   return String(value ?? "")
-    .replace(/[۰-۹]/g, (digit) => faNums.indexOf(digit))
-    .replace(/[٠-٩]/g, (digit) => arNums.indexOf(digit));
+    .replace(/[۰-۹]/g, (digit) => String(faNums.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String(arNums.indexOf(digit)));
 }
 
 function normalizeInput(value) {
   return normalizeFaDigits(value)
     .replace(/[٫،٬]/g, ".")
-    .replace(/\//g, ".")
-    .replace(/,/g, ".")
+    .replace(/[\/,]/g, ".")
     .trim();
 }
 
 function buildUrl(raw) {
-  if (!raw) return "";
-  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  if (!raw) {
+    return "";
+  }
+
+  const value = String(raw).trim();
+
+  if (!value) {
+    return "";
+  }
+
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
 function escapeHtml(value) {
@@ -334,7 +591,10 @@ function supportPromptText() {
 }
 
 function composeFooter(options = {}) {
-  const { includeSignature = false, includeSupportPrompt = false } = options;
+  const {
+    includeSignature = false,
+    includeSupportPrompt = false,
+  } = options;
 
   const parts = [];
 
@@ -351,6 +611,7 @@ function composeFooter(options = {}) {
 
 function withFooter(baseText, options = {}) {
   const footer = composeFooter(options);
+
   return footer ? `${baseText}\n\n${footer}` : baseText;
 }
 
@@ -446,6 +707,7 @@ function mainMenuKeyboard() {
     [{ text: "🌐 سامانه آموزش مجازی", callback_data: "lms:menu" }],
     [{ text: "🏛 سامانه گلستان", callback_data: "golestan:menu" }],
     [{ text: "💰 وام دانشجویی", callback_data: "loan:show" }],
+    [{ text: "🗓️ تقویم آموزشی", callback_data: "calendar:show" }],
     [
       {
         text: "📘 چارت هشت ترمه ، منابع و حذفیات ترم",
@@ -462,7 +724,7 @@ function calculationsKeyboard() {
     [{ text: "🧪 محاسبه نمره تستی", callback_data: "test:help" }],
     [{ text: "📘 محاسبه نمره نهایی", callback_data: "score:theory:help" }],
     [{ text: "📚 محاسبه معدل", callback_data: "gpa:help" }],
-    [{ text: "🎓 سقف انتخاب واحد", callback_data: "unit:start" }],
+    [{ text: "🎓 سقف و کف انتخاب واحد", callback_data: "unit:start" }],
   ]);
 }
 
@@ -507,16 +769,23 @@ function lmsProvinceResultKeyboard() {
   return resultKeyboard("lms:provinces");
 }
 
-/* ✅ UPDATED: Golestan menu now includes manual button */
 function golestanMenuKeyboard() {
   return resultKeyboard("menu", [
     [{ text: "🌐 آدرس سامانه گلستان", callback_data: "golestan:address" }],
-    [{ text: "📚 راهنمای سامانه گلستان", callback_data: "golestan:manual:menu" }],
+    [
+      {
+        text: "📚 راهنمای سامانه گلستان",
+        callback_data: "golestan:manual:menu",
+      },
+    ],
     [{ text: "📹 راهنمای تصویری گلستان", callback_data: "golestan:guide" }],
   ]);
 }
 
-/* ✅ NEW: Golestan Manual data + keyboards */
+/* =========================
+   Golestan Manual data + keyboards
+========================= */
+
 const GOLESTAN_MANUAL_SECTIONS = [
   {
     id: "edu",
@@ -535,7 +804,7 @@ const GOLESTAN_MANUAL_SECTIONS = [
       {
         id: "add_drop",
         title: "🔄 حذف و اضافه",
-        text: "🧾 حدف و اضافه\n\n(توضیحات این بخش بعداً اضافه می‌شود.)",
+        text: "🧾 حذف و اضافه\n\n(توضیحات این بخش بعداً اضافه می‌شود.)",
       },
       {
         id: "unit_report",
@@ -656,7 +925,7 @@ function golestanManualMenuKeyboard() {
     ],
     [
       {
-        text: " 🗂️ تمام گزارش‌ها و پردازش‌ها",
+        text: "🗂️ تمام گزارش‌ها و پردازش‌ها",
         callback_data: "golestan:manual:section:reports",
       },
     ],
@@ -664,42 +933,132 @@ function golestanManualMenuKeyboard() {
 }
 
 function golestanManualSectionKeyboard(sectionId) {
-  const section = GOLESTAN_MANUAL_SECTIONS.find((s) => s.id === sectionId);
-  const rows = (section?.items || []).map((it) => [
-    { text: it.title, callback_data: `golestan:manual:item:${sectionId}:${it.id}` },
+  const section = GOLESTAN_MANUAL_SECTIONS.find(
+    (item) => item.id === sectionId
+  );
+
+  const rows = (section?.items || []).map((item) => [
+    {
+      text: item.title,
+      callback_data: `golestan:manual:item:${sectionId}:${item.id}`,
+    },
   ]);
 
   return resultKeyboard("golestan:manual:menu", rows);
 }
-  function tuitionMenuKeyboard() {
-    return resultKeyboard("golestan:manual:section:edu", [
-      [
-        {
-          text: "❓ پرسش‌های متداول پرداخت شهریه (Instant View)",
-          url: TUITION_FAQ_IV_URL,
-        },
-      ],
-      [
-        {
-          text: "🎁 تخفیف‌ها و حمایت‌های ویژه (Instant View)",
-          url: TUITION_DISCOUNTS_IV_URL,
-        },
-      ],
-      [
-        {
-          text: "🎥 فیلم آموزشی پرداخت شهریه",
-          callback_data: "tuition:video",
-        },
-      ],
-      [
-        {
-          text: "📊 جدول مبالغ شهریه",
-          callback_data: "tuition:fees_table",
-        },
-      ],
-      [{ text: "📱 اپلیکیشن ۷۲۴", callback_data: "tuition:724" }],
-    ]);
-  }
+
+function tuitionMenuKeyboard() {
+  return resultKeyboard("golestan:manual:section:edu", [
+    [
+      {
+        text: "🎥 فیلم آموزشی پرداخت شهریه",
+        callback_data: "tuition:video",
+      },
+    ],
+    [
+      {
+        text: "📊 جدول مبالغ شهریه",
+        callback_data: "tuition:fees_table",
+      },
+    ],
+    [
+      {
+        text: "📱 اپلیکیشن ۷۲۴",
+        callback_data: "tuition:app724",
+      },
+    ],
+    [
+      {
+        text: "🎁 تخفیف‌ها و حمایت‌های ویژه",
+        url: TUITION_DISCOUNTS_IV_URL,
+      },
+    ],
+    [
+      {
+        text: "❓ پرسش‌های متداول پرداخت شهریه",
+        url: TUITION_FAQ_IV_URL,
+      },
+    ],
+  ]);
+}
+
+// ==========================================
+// کیبوردهای ماژول انتخاب واحد
+// ==========================================
+
+function unitMainMenuKeyboard() {
+  return resultKeyboardWithSupport("golestan:manual:section:edu", [
+    [
+      { text: "🎥 ویدئوهای آموزشی انتخاب واحد", callback_data: "unit:videos" },
+      { text: "⚖️ قوانین انتخاب واحد", callback_data: "unit:rules" }
+    ],
+    [
+      { text: "📖 انواع دروس", callback_data: "unit:types" },
+      { text: "🕌 دروس معارف", callback_data: "unit:maaref" }
+    ],
+    [
+      { text: "☀️ ترم تابستان", callback_data: "unit:summer" },
+      { text: "🎓 کف و سقف انتخاب واحد", callback_data: "unit:start" }
+    ],
+    [
+      { text: "📊 چارت هشت ترمه", callback_data: "chart:start" },
+      { text: "❓ پرسش‌های متداول انتخاب واحد", url: UNIT_FAQ_TELEGRAPH_URL }
+    ],
+    [
+      { text: "💳 پرداخت شهریه", callback_data: "tuition:start" }
+    ]
+  ]);
+}
+
+function unitRulesKeyboard() {
+  return resultKeyboardWithSupport("unit:menu", [
+    [
+      { text: "🕌 دروس معارف", callback_data: "unit:maaref" },
+      { text: "🎓 کف و سقف انتخاب واحد", callback_data: "unit:start" }
+    ],
+    [
+      { text: "🎓 دانشجوی ترم آخری", callback_data: "unit:start" },
+      { text: "📊 چارت هشت ترمه", callback_data: "chart:start" }
+    ]
+  ]);
+}
+
+function unitTypesKeyboard() {
+  return resultKeyboardWithSupport("unit:menu", [
+    [
+      { text: "🕌 دروس معارف", callback_data: "unit:maaref" },
+      { text: "📊 چارت هشت ترمه", callback_data: "chart:start" }
+    ]
+  ]);
+}
+
+function unitMaarefKeyboard() {
+  return resultKeyboardWithSupport("unit:menu", [
+    [
+      { text: "⚖️ قوانین انتخاب واحد", callback_data: "unit:rules" },
+      { text: "📖 انواع دروس", callback_data: "unit:types" }
+    ]
+  ]);
+}
+
+function unitSummerKeyboard() {
+  return resultKeyboardWithSupport("unit:menu", [
+    [
+      { text: "🎓 کف و سقف انتخاب واحد", callback_data: "unit:start" },
+      { text: "🕌 دروس معارف", callback_data: "unit:maaref" }
+    ]
+  ]);
+}
+
+function unitAfterVideosKeyboard() {
+  return resultKeyboardWithCafeNet("unit:menu", [
+    [
+      { text: "⚖️ قوانین انتخاب واحد", callback_data: "unit:rules" },
+      { text: "❓ پرسش‌های متداول انتخاب واحد", url: UNIT_FAQ_TELEGRAPH_URL }
+    ]
+  ]);
+}
+
 
 
 function contactMenuKeyboard() {
@@ -719,10 +1078,18 @@ function persistentReplyKeyboard() {
 
 function joinRequiredKeyboard() {
   const rows = REQUIRED_MEMBERSHIPS.map((item) => [
-    { text: item.name, url: item.url },
+    {
+      text: item.name,
+      url: item.url,
+    },
   ]);
 
-  rows.push([{ text: "✅ موارد بالا رو عضو شدم", callback_data: "join:check" }]);
+  rows.push([
+    {
+      text: "✅ موارد بالا رو عضو شدم",
+      callback_data: "join:check",
+    },
+  ]);
 
   return rows;
 }
@@ -732,39 +1099,49 @@ function joinRequiredKeyboard() {
 ========================= */
 
 async function tgCall(method, token, payload) {
-  const response = await fetch(
-    `https://api.telegram.org/bot${token}/${method}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    }
-  );
-
-  const result = await response.json().catch(() => null);
-
-  if (!response.ok || !result?.ok) {
-    const description = result?.description || "";
-
-    if (
-      method === "editMessageText" &&
-      description.includes("message is not modified")
-    ) {
-      return true;
-    }
-
-    console.error(
-      `Telegram ${method} failed:`,
-      response.status,
-      JSON.stringify(result)
-    );
-
+  if (!token || !method) {
+    console.error("Telegram API call is missing token or method.");
     return false;
   }
 
-  return result;
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${token}/${method}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok || !result?.ok) {
+      const description = result?.description || "";
+
+      if (
+        method === "editMessageText" &&
+        description.toLowerCase().includes("message is not modified")
+      ) {
+        return true;
+      }
+
+      console.error(
+        `Telegram ${method} failed:`,
+        response.status,
+        JSON.stringify(result)
+      );
+
+      return false;
+    }
+
+    return result;
+  } catch (error) {
+    console.error(`Telegram ${method} request error:`, error);
+    return false;
+  }
 }
 
 async function setBotMenuButton(token) {
@@ -777,7 +1154,12 @@ async function setBotMenuButton(token) {
 
 async function setBotCommands(token) {
   return tgCall("setMyCommands", token, {
-    commands: [{ command: "start", description: "🏠 بازگشت به منوی اصلی" }],
+    commands: [
+      {
+        command: "start",
+        description: "🏠 بازگشت به منوی اصلی",
+      },
+    ],
   });
 }
 
@@ -808,7 +1190,12 @@ async function sendMessage(
   return tgCall("sendMessage", token, body);
 }
 
-async function sendReplyKeyboardMessage(chatId, text, token, isRaw = false) {
+async function sendReplyKeyboardMessage(
+  chatId,
+  text,
+  token,
+  isRaw = false
+) {
   return tgCall("sendMessage", token, {
     chat_id: chatId,
     text: isRaw ? String(text ?? "") : rtl(String(text ?? "")),
@@ -862,6 +1249,10 @@ async function answerCallbackQuery(
   text = "",
   showAlert = false
 ) {
+  if (!callbackQueryId) {
+    return false;
+  }
+
   const payload = {
     callback_query_id: callbackQueryId,
   };
@@ -878,10 +1269,8 @@ async function answerCallbackQuery(
 }
 
 /* =========================
-   Unified Video Sender (NEW)
-   - uses copyMessage (no "Forwarded from")
-   - can set caption + keyboard
-   - forces protect_content=true to block save/forward
+   Unified Video Sender
+   استفاده از copyMessage باعث حذف عبارت Forwarded from می‌شود
 ========================= */
 
 const VIDEO_SOURCE_JOIN_URL = "https://t.me/PNUniNet";
@@ -894,7 +1283,7 @@ async function copyMessageWithCaption(
   caption = null,
   inlineKeyboard = null,
   parseMode = "HTML",
-  protectContent = false // ← پیش‌فرض را false در نظر بگیرید
+  protectContent = false
 ) {
   const body = {
     chat_id: toChatId,
@@ -902,11 +1291,23 @@ async function copyMessageWithCaption(
     message_id: messageId,
   };
 
-  // اگر caption بدهیم، کپشنِ اصلی کانال را عوض می‌کند
-  if (caption != null) body.caption = caption;
-  if (parseMode) body.parse_mode = parseMode;
-  if (inlineKeyboard) body.reply_markup = { inline_keyboard: inlineKeyboard };
-  if (protectContent) body.protect_content = true;
+  if (caption !== null && caption !== undefined) {
+    body.caption = String(caption);
+  }
+
+  if (parseMode && body.caption) {
+    body.parse_mode = parseMode;
+  }
+
+  if (inlineKeyboard) {
+    body.reply_markup = {
+      inline_keyboard: inlineKeyboard,
+    };
+  }
+
+  if (protectContent === true) {
+    body.protect_content = true;
+  }
 
   return tgCall("copyMessage", token, body);
 }
@@ -917,6 +1318,9 @@ function resultKeyboardWithCafeNet(backData, extraRows = []) {
     [{ text: "🖨 پیام به کافی نت", callback_data: "cafenet:start" }],
   ]);
 }
+/* =========================
+   Keyboards & Video Builders
+========================= */
 
 function resultKeyboardWithSupportAndCafeNet(backData, extraRows = []) {
   return resultKeyboard(backData, [
@@ -926,7 +1330,7 @@ function resultKeyboardWithSupportAndCafeNet(backData, extraRows = []) {
   ]);
 }
 
-function buildVideoKeyboard(backData, cfg) {
+function buildVideoKeyboard(backData, cfg = {}) {
   const extraRows = cfg.extraRows || [];
   const showSupportButton = Boolean(cfg.showSupportButton);
   const showCafeNetButton = Boolean(cfg.showCafeNetButton);
@@ -949,39 +1353,36 @@ function buildVideoKeyboard(backData, cfg) {
 function buildVideoCaption({ title = "", blocks = [], includeSignature = true }) {
   const parts = [];
 
-  if (title) parts.push(`<b>${escapeHtml(title)}</b>`);
+  if (title) {
+    parts.push(`<b>${escapeHtml(title)}</b>`);
+  }
+
   for (const b of blocks) {
     if (b) parts.push(b);
   }
 
   const base = parts.filter(Boolean).join("\n\n");
 
-  // امضا/فوتر نهایی (بدون اجبار به ساپورت‌پرومپت؛ چون خود blocks ماژولی است)
   return withFooter(base, { includeSignature, includeSupportPrompt: false });
 }
 
 async function sendGuideVideo(env, chatId, cfg, backData) {
-  // 1) ویدئو را کپی می‌کنیم، بدون دستکاری کپشن و بدون protect
   const copyResult = await copyMessageWithCaption(
     chatId,
     cfg.fromChatId || SUPPORT_CHANNEL_ID,
     cfg.messageId,
     env.BOT_TOKEN,
-    null, // caption = null → کپشن کانال دست‌نخورده می‌ماند
-    null, // کیبورد روی خود ویدئو نمی‌گذاریم
-    null, // parseMode لازم نیست
-    false // protectContent = false → فوروارد/ذخیره باز است
+    null,
+    null,
+    null,
+    false
   );
 
-  // اگر کپی ناموفق بود، تمام
   if (!copyResult || !copyResult.ok || !copyResult.result) {
     return false;
   }
 
-  // آیدی پیام ویدئوی کپی‌شده
   const videoMsgId = copyResult.result.message_id;
-
-  // 2) پیام تکمیلی + دکمه‌ها را به صورت ریپلای همان ویدئو می‌فرستیم
   const keyboard = buildVideoKeyboard(backData, cfg);
 
   const textBlocks = cfg.blocks || [];
@@ -989,14 +1390,34 @@ async function sendGuideVideo(env, chatId, cfg, backData) {
     textBlocks.filter(Boolean).join("\n\n") ||
     "در صورت داشتن سوال، از طریق دکمه‌های زیر اقدام فرمایید.";
 
-  // این‌بار مستقیم از tgCall برای sendMessage استفاده می‌کنیم تا reply_to_message_id بدهیم
   const msgResult = await tgCall("sendMessage", env.BOT_TOKEN, {
     chat_id: chatId,
-    text: finalText,
-    reply_to_message_id: videoMsgId, // ← این باعث می‌شود پیام به ویدئو بچسبد (ریپلای شود)
+    text: rtl(finalText),
+    reply_to_message_id: videoMsgId,
     allow_sending_without_reply: true,
     reply_markup: { inline_keyboard: keyboard },
   });
+
+async function sendUnitRegistrationVideos(chatId, env) {
+  for (const video of UNIT_GUIDE_VIDEOS) {
+    await copyMessageWithCaption(
+      chatId,
+      video.channel,
+      video.messageId,
+      env.BOT_TOKEN,
+      null,
+      null
+    );
+  }
+  await sendMessage(
+    chatId,
+    tuitionCafeNetPromptText(),
+    env.BOT_TOKEN,
+    unitAfterVideosKeyboard()
+  );
+}
+
+
 
   return Boolean(msgResult && msgResult.ok);
 }
@@ -1121,7 +1542,7 @@ class AdminMessenger {
     if (!replyText) return null;
 
     const normalizedText = normalizeFaDigits(String(replyText));
-    const match = normalizedText.match(/(?:🔢\s*)?ID:\s*([0-9]+)/);
+    const match = normalizedText.match(/(?:🔢\s*)?ID:\s*([0-9]+)/i);
 
     return match ? match[1] : null;
   }
@@ -1845,11 +2266,11 @@ async function handleMessage(message, env) {
         `📦 تعداد واحدها: ${fa(result.totalUnits)}`,
         `🎯 معدل ترم: ${fa(result.gpa.toFixed(2))}`,
         "",
-        "برای اطلاع از حداقل و حداکثر واحد قابل اخذ در نیمسال آینده، بر اساس این معدل، به بخش «سقف انتخاب واحد» مراجعه نمایید.",
+        "برای اطلاع از حداقل و حداکثر واحد قابل اخذ در نیمسال آینده، بر اساس این معدل، به بخش «سقف و کف انتخاب واحد» مراجعه نمایید.",
       ].join("\n"),
       env.BOT_TOKEN,
       resultKeyboard("menu:calculations", [
-        [{ text: "🎓 سقف انتخاب واحد", callback_data: "unit:start" }],
+        [{ text: "🎓 سقف و کف انتخاب واحد", callback_data: "unit:start" }],
       ]),
       true
     );
@@ -1866,48 +2287,80 @@ async function handleMessage(message, env) {
     mainMenuKeyboard()
   );
 }
-
 /* =========================
-   Callback handler
+   Callback Handlers (Part 3)
 ========================= */
 
 async function handleCallback(callbackQuery, env) {
-  const data = callbackQuery.data || "";
-  const chatId = callbackQuery.message?.chat?.id;
-  const messageId = callbackQuery.message?.message_id;
+  const callbackId = callbackQuery?.id;
 
-  // ثبت تعامل در دیتابیس D1
-  await trackUser(callbackQuery.from, env, `cb:${data}`);
+  try {
+    return await handleCallbackCore(callbackQuery, env);
+  } catch (error) {
+    console.error("handleCallback error:", error);
 
-  if (!chatId || !messageId) {
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-    return;
+    if (callbackId) {
+      await answerCallbackQuery(
+        callbackId,
+        env.BOT_TOKEN,
+        "⚠️ خطایی رخ داد. لطفاً دوباره تلاش کنید.",
+        true
+      ).catch(() => {});
+    }
+
+    return false;
+  }
+}
+
+async function handleCallbackCore(callbackQuery, env) {
+  const data = String(callbackQuery?.data || "");
+  const callbackId = callbackQuery?.id;
+  const callbackUserId = callbackQuery?.from?.id;
+  const chatId = callbackQuery?.message?.chat?.id;
+  const messageId = callbackQuery?.message?.message_id;
+
+  if (!callbackId) {
+    return false;
   }
 
+  // ثبت تعامل در دیتابیس D1 بدون مسدود کردن جریان اجرای برنامه
+  await Promise.resolve(
+    trackUser(callbackQuery.from, env, `cb:${data}`)
+  ).catch((error) => {
+    console.error("Callback tracking failed:", error);
+  });
+
+  if (!callbackUserId || !chatId || !messageId) {
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN).catch(() => {});
+    return false;
+  }
+
+  // بررسی گیت عضویت اجباری
   if (!isAdminChat(chatId, env) && data !== "join:check") {
-    const isAllowed = await enforceMembershipGate(chatId, env.BOT_TOKEN);
+    const isAllowed = await enforceMembershipGate(callbackUserId, env.BOT_TOKEN);
 
     if (!isAllowed) {
       await answerCallbackQuery(
-        callbackQuery.id,
+        callbackId,
         env.BOT_TOKEN,
-        "ابتدا عضویت خود را کامل کنید.",
+        "ابتدا عضویت خود را در کانال‌ها کامل کنید.",
         true
-      );
-      return;
+      ).catch(() => {});
+      return false;
     }
   }
 
+  // ۱. بررسی تایید عضویت
   if (data === "join:check") {
-    const missing = await getMissingMemberships(chatId, env.BOT_TOKEN);
+    const missing = await getMissingMemberships(callbackUserId, env.BOT_TOKEN);
 
     if (missing.length > 0) {
       await answerCallbackQuery(
-        callbackQuery.id,
+        callbackId,
         env.BOT_TOKEN,
         "هنوز در همه موارد عضو نشده‌اید.",
         true
-      );
+      ).catch(() => {});
 
       await sendMessage(
         chatId,
@@ -1917,15 +2370,16 @@ async function handleCallback(callbackQuery, env) {
         true
       );
 
-      return;
+      return false;
     }
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "عضویت شما تایید شد.");
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "✅ عضویت شما تایید شد.").catch(() => {});
 
-    await setBotCommands(env.BOT_TOKEN);
-    await setBotMenuButton(env.BOT_TOKEN);
-
-    await ensurePersistentKeyboard(chatId, env.BOT_TOKEN);
+    await Promise.allSettled([
+      setBotCommands(env.BOT_TOKEN),
+      setBotMenuButton(env.BOT_TOKEN),
+      ensurePersistentKeyboard(chatId, env.BOT_TOKEN),
+    ]);
 
     await editMessage(
       chatId,
@@ -1936,24 +2390,23 @@ async function handleCallback(callbackQuery, env) {
       true
     );
 
-    return;
+    return true;
   }
 
+  // ۲. منوی اصلی
   if (data === "menu") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🏠 بازگشت به منوی اصلی");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🏠 بازگشت به منوی اصلی").catch(() => {});
     await showMainMenu(chatId, env.BOT_TOKEN, true, messageId, "🏠 منوی اصلی");
-
-    return;
+    return true;
   }
 
+  // ۳. منوی محاسبات
   if (data === "menu:calculations" || data === "score:menu") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🧮 محاسبات");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🧮 محاسبات").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -1962,12 +2415,12 @@ async function handleCallback(callbackQuery, env) {
       calculationsKeyboard(),
       true
     );
-
-    return;
+    return true;
   }
 
+  // ۴. درباره ما
   if (data === "about:show") {
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🤖 معرفی ربات");
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🤖 معرفی ربات").catch(() => {});
 
     const text = [
       "🤖 معرفی ربات",
@@ -1979,15 +2432,14 @@ async function handleCallback(callbackQuery, env) {
     ].join("\n");
 
     await editMessage(chatId, messageId, text, env.BOT_TOKEN, resultKeyboard("menu"));
-
-    return;
+    return true;
   }
 
+  // ۵. فرم‌های پشتیبانی و کافی‌نت
   if (data === "support:start") {
     userStates.set(chatId, { step: "support_waiting_message" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📨 ارسال پرسش و پیام");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📨 ارسال پرسش و پیام").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -1996,15 +2448,13 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("contact:menu"),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "cafenet:start") {
     userStates.set(chatId, { step: "cafenet_waiting_message" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🖨 پیام به کافی نت");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🖨 پیام به کافی نت").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2013,22 +2463,58 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("contact:menu"),
       true
     );
-
-    return;
+    return true;
   }
 
-  // 🎥 فیلم آموزشی پرداخت شهریه
+    // Callbackهای ماژول انتخاب واحد
+    if (data === "unit:menu") {
+      await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🎓 راهنمای جامع انتخاب واحد").catch(() => {});
+      return editMessage(chatId, messageId, unitMainMenuText(), env.BOT_TOKEN, unitMainMenuKeyboard(), false, "HTML");
+    }
+
+    if (data === "unit:rules") {
+      await answerCallbackQuery(callbackId, env.BOT_TOKEN, "⚖️ قوانین انتخاب واحد").catch(() => {});
+      return editMessage(chatId, messageId, unitRulesText(), env.BOT_TOKEN, unitRulesKeyboard());
+    }
+
+    if (data === "unit:types") {
+      await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📖 انواع دروس").catch(() => {});
+      return editMessage(chatId, messageId, unitTypesText(), env.BOT_TOKEN, unitTypesKeyboard());
+    }
+
+    if (data === "unit:maaref") {
+      await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🕌 دروس معارف").catch(() => {});
+      return editMessage(chatId, messageId, unitMaarefText(), env.BOT_TOKEN, unitMaarefKeyboard());
+    }
+
+    if (data === "unit:summer") {
+      await answerCallbackQuery(callbackId, env.BOT_TOKEN, "☀️ ترم تابستان").catch(() => {});
+      return editMessage(chatId, messageId, unitSummerText(), env.BOT_TOKEN, unitSummerKeyboard());
+    }
+
+    if (data === "unit:videos") {
+      await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🎥 در حال ارسال ویدئوهای آموزشی...").catch(() => {});
+      return sendUnitRegistrationVideos(chatId, env);
+    }
+
+
+  // ۶. بخش شهریه (فیلم، جدول و اپلیکیشن)
   if (data === "tuition:video") {
-    await answerCallbackQuery(
-      callbackQuery.id,
-      env.BOT_TOKEN,
-      "🎥 فیلم آموزشی پرداخت شهریه"
-    );
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🎥 فیلم آموزشی پرداخت شهریه").catch(() => {});
 
-    // کپی پست آموزشی از کانال (آیدی 25)
-    await copyMessageWithCaption(chatId, "@PNUniNet", 25, env.BOT_TOKEN);
+    const copied = await copyMessageWithCaption(chatId, "@PNUniNet", 25, env.BOT_TOKEN);
 
-    // نمایش متن کافی‌نت + دکمه پیام به کافی‌نت و بازگشت
+    if (!copied?.ok || !copied?.result) {
+      await sendMessage(
+        chatId,
+        "⚠️ امکان ارسال فیلم آموزشی در حال حاضر وجود ندارد.\nلطفاً کمی بعد دوباره تلاش کنید.",
+        env.BOT_TOKEN,
+        resultKeyboard("golestan:manual:item:edu:tuition"),
+        true
+      );
+      return false;
+    }
+
     const kb = [
       [
         { text: "💻 پیام به کافی‌نت", callback_data: "cafenet:start" },
@@ -2040,33 +2526,38 @@ async function handleCallback(callbackQuery, env) {
       [{ text: "🏠 منوی اصلی", callback_data: "menu" }],
     ];
 
-    await sendMessage(chatId, CAFE_NET_TEXT, env.BOT_TOKEN, kb);
-    return;
+    await sendMessage(chatId, CAFE_NET_TEXT, env.BOT_TOKEN, kb, true);
+    return true;
   }
 
-  // 📊 جدول مبالغ شهریه
   if (data === "tuition:fees_table") {
-    await answerCallbackQuery(
-      callbackQuery.id,
-      env.BOT_TOKEN,
-      "📊 جدول مبالغ شهریه"
-    );
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📊 جدول مبالغ شهریه").catch(() => {});
 
-    // کپی جدول شهریه از کانال (آیدی 43)
-    await copyMessageWithCaption(chatId, "@PNUniNet", 43, env.BOT_TOKEN);
+    const copied = await copyMessageWithCaption(chatId, "@PNUniNet", 43, env.BOT_TOKEN);
+
+    if (!copied?.ok || !copied?.result) {
+      await sendMessage(
+        chatId,
+        "⚠️ امکان ارسال جدول شهریه در حال حاضر وجود ندارد.\nلطفاً کمی بعد دوباره تلاش کنید.",
+        env.BOT_TOKEN,
+        resultKeyboard("golestan:manual:item:edu:tuition"),
+        true
+      );
+      return false;
+    }
 
     await sendMessage(
       chatId,
       "برای بازگشت از دکمه زیر استفاده کنید.",
       env.BOT_TOKEN,
-      resultKeyboard("golestan:manual:item:edu:tuition")
+      resultKeyboard("golestan:manual:item:edu:tuition"),
+      true
     );
-    return;
+    return true;
   }
 
-  // 📱 اپلیکیشن ۷۲۴
-  if (data === "tuition:724") {
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📱 اپلیکیشن ۷۲۴");
+  if (data === "tuition:app724") {
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📱 اپلیکیشن ۷۲۴").catch(() => {});
 
     await editMessage(
       chatId,
@@ -2077,15 +2568,14 @@ async function handleCallback(callbackQuery, env) {
       false,
       "HTML"
     );
-    return;
+    return true;
   }
-  
 
+  // ۷. وام دانشجویی
   if (data === "loan:show") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "💰 وام دانشجویی");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "💰 وام دانشجویی").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2094,15 +2584,14 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("menu"),
       true
     );
-
-    return;
+    return true;
   }
 
+  // ۸. ارتباط با ما و پیام ادمین
   if (data === "contact:menu") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📞 ارتباط با ما");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📞 ارتباط با ما").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2111,15 +2600,13 @@ async function handleCallback(callbackQuery, env) {
       contactMenuKeyboard(),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "contact:feedback") {
     userStates.set(chatId, { step: "contact_waiting_feedback" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📝 ارسال پیشنهاد و انتقاد");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📝 ارسال پیشنهاد و انتقاد").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2128,15 +2615,13 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("contact:menu"),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "contact:admin") {
     userStates.set(chatId, { step: "contact_waiting_admin_msg" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "💬 ارتباط مستقیم با ادمین");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "💬 ارتباط مستقیم با ادمین").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2145,15 +2630,14 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("contact:menu"),
       true
     );
-
-    return;
+    return true;
   }
 
+  // ۹. راهنماهای محاسبات (نمره تئوری، عملی، تستی و معدل)
   if (data === "score:theory:help") {
     userStates.set(chatId, { step: "score_waiting_theory" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📘 راهنمای نمره نهایی");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📘 راهنمای نمره نهایی").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2176,15 +2660,13 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("menu:calculations"),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "score:mix:help") {
     userStates.set(chatId, { step: "score_waiting_mix" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📗 راهنمای محاسبه تئوری/عملی");
-
+    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📗 راهنمای محاسبه تئوری/عملی").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2205,15 +2687,13 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("menu:calculations"),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "test:help") {
     userStates.set(chatId, { step: "score_waiting_test" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🧪 راهنمای محاسبه نمره تستی");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🧪 راهنمای محاسبه نمره تستی").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2222,15 +2702,13 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("menu:calculations"),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "gpa:help") {
     userStates.set(chatId, { step: "gpa_waiting_lines" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📚 راهنمای محاسبه معدل");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📚 راهنمای محاسبه معدل").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2239,15 +2717,14 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("menu:calculations"),
       true
     );
-
-    return;
+    return true;
   }
 
+  // ۱۰. سامانه LMS (ریلاین)
   if (data === "lms:menu") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🌐 سامانه آموزش مجازی");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🌐 سامانه آموزش مجازی").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2256,15 +2733,13 @@ async function handleCallback(callbackQuery, env) {
       lmsMainKeyboard(),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "lms:provinces") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📍 آدرس ریلاین استانی");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📍 آدرس ریلاین استانی").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2273,16 +2748,13 @@ async function handleCallback(callbackQuery, env) {
       lmsMenuKeyboardAllInOne(),
       true
     );
-
-    return;
+    return true;
   }
-
-  // --- LMS VIDEO GUIDES (UPDATED: forward -> copyMessage + caption + protect_content) ---
 
   if (data === "lms:guide") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📹 راهنمای تصویری ریلاین");
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📹 راهنمای تصویری ریلاین").catch(() => {});
 
     const videoRows = RAILAY_GUIDE_VIDEOS.map((video) => [
       {
@@ -2296,21 +2768,18 @@ async function handleCallback(callbackQuery, env) {
     await editMessage(
       chatId,
       messageId,
-      "📹 راهنمای تصویری ریلاین\n\n" +
-        "یکی از موضوعات زیر را انتخاب کنید:\n" +
-        "ویدیوها بدون برچسب فوروارد (copy) ارسال می‌شوند.",
+      "📹 راهنمای تصویری ریلاین\n\nیکی از موضوعات زیر را انتخاب کنید:",
       env.BOT_TOKEN,
       keyboard,
       true
     );
-
-    return;
+    return true;
   }
 
   if (data.startsWith("lms:guide:video:")) {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN).catch(() => {});
 
     const videoId = data.split(":").pop();
     const video = RAILAY_GUIDE_VIDEOS.find((v) => v.id === videoId);
@@ -2324,7 +2793,7 @@ async function handleCallback(callbackQuery, env) {
         resultKeyboard("lms:guide"),
         true
       );
-      return;
+      return false;
     }
 
     const blocks = [];
@@ -2348,8 +2817,7 @@ async function handleCallback(callbackQuery, env) {
 
     if (!ok) {
       const failText = withFooter(
-        "⚠️ امکان ارسال ویدیو وجود ندارد.\n\n" +
-          "برای مشاهده، ابتدا در کانال پیام نوری عضو شوید:",
+        "⚠️ امکان ارسال ویدیو وجود ندارد.\n\nبرای مشاهده، ابتدا در کانال پیام نوری عضو شوید:",
         {
           includeSupportPrompt: Boolean(video.showSupportPrompt),
           includeSignature: true,
@@ -2365,15 +2833,13 @@ async function handleCallback(callbackQuery, env) {
       await sendMessage(chatId, failText, env.BOT_TOKEN, failKeyboard, true);
     }
 
-    return;
+    return true;
   }
-
-  // -------------------------
 
   if (data.startsWith("lms:province:")) {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN).catch(() => {});
 
     const id = data.split(":")[2];
     const province = getLmsProvinceById(id);
@@ -2387,8 +2853,7 @@ async function handleCallback(callbackQuery, env) {
         lmsMenuKeyboardAllInOne(),
         true
       );
-
-      return;
+      return false;
     }
 
     const fullUrl = buildUrl(province.url);
@@ -2419,15 +2884,14 @@ async function handleCallback(callbackQuery, env) {
       true,
       "HTML"
     );
-
-    return;
+    return true;
   }
 
+  // ۱۱. سامانه گلستان
   if (data === "golestan:menu") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🏛 سامانه گلستان");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🏛 سامانه گلستان").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2436,16 +2900,13 @@ async function handleCallback(callbackQuery, env) {
       golestanMenuKeyboard(),
       true
     );
-
-    return;
+    return true;
   }
 
-  /* ✅ NEW: Golestan Manual handlers */
   if (data === "golestan:manual:menu") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📚 راهنمای سامانه گلستان");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📚 راهنمای سامانه گلستان").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2454,16 +2915,15 @@ async function handleCallback(callbackQuery, env) {
       golestanManualMenuKeyboard(),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data.startsWith("golestan:manual:section:")) {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN).catch(() => {});
 
-    const sectionId = data.split(":").pop(); // edu | exams | special | reports
+    const sectionId = data.split(":").pop();
     const section = GOLESTAN_MANUAL_SECTIONS.find((s) => s.id === sectionId);
 
     if (!section) {
@@ -2475,7 +2935,7 @@ async function handleCallback(callbackQuery, env) {
         golestanManualMenuKeyboard(),
         true
       );
-      return;
+      return false;
     }
 
     await editMessage(
@@ -2486,16 +2946,14 @@ async function handleCallback(callbackQuery, env) {
       golestanManualSectionKeyboard(sectionId),
       true
     );
-
-    return;
+    return true;
   }
 
-  // ✅ صفحه اختصاصی «💳 پرداخت شهریه» (حتماً قبل از handler عمومی آیتم‌ها باشد)
+  // صفحه اختصاصی پرداخت شهریه
   if (data === "golestan:manual:item:edu:tuition") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN).catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2505,17 +2963,36 @@ async function handleCallback(callbackQuery, env) {
       false,
       "HTML"
     );
-
-    return;
+    return true;
   }
 
-  // ✅ handler عمومی آیتم‌های راهنمای گلستان
+  // نمایش آیتم‌های عمومی راهنمای گلستان
   if (data.startsWith("golestan:manual:item:")) {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN);
-
     const [, , , sectionId, itemId] = data.split(":");
+
+    // اگر انتخاب واحد کلیک شده باشد
+    if (sectionId === "edu" && itemId === "unit_select") {
+      await answerCallbackQuery(
+        callbackId,
+        env.BOT_TOKEN,
+        "🎓 راهنمای جامع انتخاب واحد"
+      ).catch(() => {});
+
+      return editMessage(
+        chatId,
+        messageId,
+        unitMainMenuText(),
+        env.BOT_TOKEN,
+        unitMainMenuKeyboard()
+        false,
+        "HTML"
+      );
+    }
+
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN).catch(() => {});
+
     const section = GOLESTAN_MANUAL_SECTIONS.find((s) => s.id === sectionId);
     const item = section?.items?.find((it) => it.id === itemId);
 
@@ -2528,7 +3005,7 @@ async function handleCallback(callbackQuery, env) {
         golestanManualMenuKeyboard(),
         true
       );
-      return;
+      return false;
     }
 
     await editMessage(
@@ -2539,15 +3016,14 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard(`golestan:manual:section:${sectionId}`),
       true
     );
-
-    return;
+    return true;
   }
 
 
   if (data === "golestan:address") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🌐 آدرس سامانه گلستان");
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🌐 آدرس سامانه گلستان").catch(() => {});
 
     const links = [
       "https://reg.pnu.ac.ir",
@@ -2580,15 +3056,13 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("golestan:menu"),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "golestan:guide") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📹 راهنمای تصویری گلستان");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📹 راهنمای تصویری گلستان").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2597,15 +3071,14 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("golestan:menu"),
       true
     );
-
-    return;
+    return true;
   }
 
+  // ۱۲. منابع و چارت دروس
   if (data === "refs:start") {
     userStates.set(chatId, { step: "refs_waiting_major" });
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📘 چارت، منابع و حذفیات ترم");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📘 چارت، منابع و حذفیات ترم").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2614,19 +3087,18 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("menu"),
       true
     );
-
-    return;
+    return true;
   }
 
+  // ۱۳. محاسبه سقف و کف انتخاب واحد
   if (data === "unit:start") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "🎓 محاسبه سقف انتخاب واحد");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "🎓 محاسبه سقف و کف انتخاب واحد").catch(() => {});
     await editMessage(
       chatId,
       messageId,
-      "🎓 سقف مجاز انتخاب واحد\n\n❓ آیا ترم آخر هستید؟",
+      "🎓 سقف و کف مجاز انتخاب واحد\n\n❓ آیا ترم آخر هستید؟",
       env.BOT_TOKEN,
       resultKeyboard("menu", [
         [
@@ -2635,20 +3107,18 @@ async function handleCallback(callbackQuery, env) {
         ],
       ])
     );
-
-    return;
+    return true;
   }
 
   if (data === "unit:last") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "✅ حالت ترم آخر انتخاب شد");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "✅ حالت ترم آخر انتخاب شد").catch(() => {});
     await editMessage(
       chatId,
       messageId,
       [
-        "📋 نتیجه سقف مجاز انتخاب واحد",
+        "📋 نتیجه سقف و کف مجاز انتخاب واحد",
         "",
         "🎓 وضعیت: ترم آخر",
         `🔺 حداکثر مجاز: ${fa("۲۴")} واحد`,
@@ -2657,15 +3127,13 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard("unit:start", [[{ text: "🔁 محاسبه دوباره", callback_data: "unit:start" }]]),
       true
     );
-
-    return;
+    return true;
   }
 
   if (data === "unit:not_last") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📌 حالت غیر ترم آخر انتخاب شد");
-
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📌 حالت غیر ترم آخر انتخاب شد").catch(() => {});
     await editMessage(
       chatId,
       messageId,
@@ -2676,14 +3144,13 @@ async function handleCallback(callbackQuery, env) {
         [{ text: "🚫 غیرمشمول", callback_data: "unit:normal:n" }],
       ])
     );
-
-    return;
+    return true;
   }
 
   if (data === "unit:normal:m" || data === "unit:normal:n") {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "📈 انتخاب بازه معدل");
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "📈 انتخاب بازه معدل").catch(() => {});
 
     const type = data.endsWith(":m") ? "m" : "n";
 
@@ -2698,17 +3165,15 @@ async function handleCallback(callbackQuery, env) {
         [{ text: `${fa("۱۷")} و بالاتر`, callback_data: `unit:gpa:${type}:high` }],
       ])
     );
-
-    return;
+    return true;
   }
 
   if (data.startsWith("unit:gpa:")) {
     userStates.delete(chatId);
 
-    await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "✅ نتیجه آماده شد");
+    await answerCallbackQuery(callbackId, env.BOT_TOKEN, "✅ نتیجه آماده شد").catch(() => {});
 
     const [, , type, band] = data.split(":");
-
     const isMashmool = type === "m";
     const minUnits = isMashmool ? 12 : 8;
 
@@ -2731,7 +3196,7 @@ async function handleCallback(callbackQuery, env) {
       chatId,
       messageId,
       [
-        "📋 نتیجه سقف مجاز انتخاب واحد",
+        "📋 نتیجه سقف و کف مجاز انتخاب واحد",
         "",
         `👤 وضعیت: ${statusLabel}`,
         `🎓 معدل ترم قبل: ${gpaLabel}`,
@@ -2742,9 +3207,24 @@ async function handleCallback(callbackQuery, env) {
       resultKeyboard(`unit:normal:${type}`, [[{ text: "🔁 محاسبه دوباره", callback_data: "unit:start" }]]),
       true
     );
-
-    return;
+    return true;
   }
 
-  await answerCallbackQuery(callbackQuery.id, env.BOT_TOKEN, "✅ انجام شد");
+  // ۱۴. مدیریت Callback نامعتبر یا تاریخ‌گذشته
+  await answerCallbackQuery(
+    callbackId,
+    env.BOT_TOKEN,
+    "⚠️ این گزینه دیگر معتبر نیست.",
+    true
+  ).catch(() => {});
+
+  await sendMessage(
+    chatId,
+    "⚠️ این گزینه دیگر معتبر نیست.\nلطفاً از منوی اصلی دوباره انتخاب کنید.",
+    env.BOT_TOKEN,
+    resultKeyboard("menu"),
+    true
+  );
+
+  return false;
 }
